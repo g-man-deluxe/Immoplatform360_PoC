@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import json
 from PIL import Image
 from bewertung import berechne_kennzahlen
 from standort import analysiere_standort
@@ -9,31 +8,12 @@ import folium
 from streamlit_folium import st_folium
 from folium.plugins import HeatMap
 
-# Login-System
-def check_login():
-    st.sidebar.title("🔐 Login")
-    user = st.sidebar.text_input("Benutzername")
-    pw = st.sidebar.text_input("Passwort", type="password")
-    with open("users.json") as f:
-        user_data = json.load(f)
-    if st.sidebar.button("Anmelden"):
-        if user in user_data and user_data[user] == pw:
-            st.session_state["user"] = user
-            st.experimental_rerun()
-        else:
-            st.sidebar.error("Zugangsdaten ungültig.")
-
-if "user" not in st.session_state:
-    check_login()
-    st.stop()
-
-# Immo360 UI
 st.set_page_config(page_title="Immo360 – Immobilienbewertung", layout="centered")
 logo = Image.open("logo.png")
 st.image(logo, width=120)
 st.title("🏠 Immo360 – Immobilienbewertung für Kleinanleger")
 
-tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse & Karte", "💶 Preis-Heatmap"])
+tabs = st.tabs(["🏘 Objektbewertung", "📍 Standort & Markt"])
 
 with tabs[0]:
     st.subheader("📥 Objektdaten")
@@ -71,10 +51,12 @@ with tabs[0]:
         st.markdown(f"**Koordinaten:** {standortdaten.get('Latitude')} / {standortdaten.get('Longitude')}")
 
 with tabs[1]:
-    st.subheader("📍 Adresse eingeben")
-    plz_map = st.text_input("PLZ", "04109")
-    str_map = st.text_input("Straße", "Augustusplatz")
+    st.subheader("📍 Adresse analysieren und Marktumfeld anzeigen")
+
+    plz_map = st.text_input("PLZ", "80331")
+    str_map = st.text_input("Straße", "Marienplatz")
     nr_map = st.text_input("Hausnummer", "1")
+    selected_city = st.selectbox("Stadt für Heatmap", ["München", "Hamburg"])
 
     if plz_map:
         ort = analysiere_standort(plz_map, str_map, nr_map)
@@ -96,18 +78,15 @@ with tabs[1]:
                 folium.Marker(
                     [poi["lat"], poi["lon"]],
                     popup=f"{poi['typ'].capitalize()}: {poi['name']}",
-                    icon=folium.Icon(color=icon, icon="info-sign")
+                    icon=folium.Icon(color=icon)
                 ).add_to(m)
+
+            # Heatmap ergänzen
+            df = pd.read_csv("preise.csv")
+            df_city = df[df["stadt"] == selected_city]
+            heat_data = [[row["lat"], row["lon"], row["price"]] for _, row in df_city.iterrows()]
+            HeatMap(heat_data, radius=15, blur=10, max_zoom=13).add_to(m)
 
             st_folium(m, width=700, height=500)
         else:
             st.warning("⚠️ Standort konnte nicht bestimmt werden.")
-with tabs[2]:
-    st.subheader("💶 Kaufpreis-Heatmap für München & Hamburg")
-    selected_city = st.selectbox("Stadt auswählen", ["München", "Hamburg"])
-    df = pd.read_csv("preise.csv")
-    df_city = df[df["stadt"] == selected_city]
-    m = folium.Map(location=[df_city["lat"].mean(), df_city["lon"].mean()], zoom_start=12)
-    heat_data = [[row["lat"], row["lon"], row["price"]] for _, row in df_city.iterrows()]
-    HeatMap(heat_data, radius=15, blur=10, max_zoom=13).add_to(m)
-    st_folium(m, width=700, height=500)
