@@ -2,7 +2,10 @@ import streamlit as st
 from bewertung import berechne_kennzahlen
 from report import erstelle_pdf
 from standort import analysiere_standort
+from overpass import finde_pois
 from PIL import Image
+import folium
+from streamlit_folium import st_folium
 
 st.set_page_config(page_title="Immo360 – Immobilienbewertung", layout="centered")
 
@@ -10,7 +13,7 @@ logo = Image.open("logo.png")
 st.image(logo, width=120)
 st.title("🏠 Immo360 – Immobilienbewertung für Kleinanleger")
 
-tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse"])
+tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse", "🗺 Karte mit POIs"])
 
 with tabs[0]:
     st.subheader("📥 Objektdaten")
@@ -43,3 +46,29 @@ with tabs[1]:
     if plz_input:
         result = analysiere_standort(plz_input)
         st.write(result)
+
+with tabs[2]:
+    st.subheader("🗺 Standortkarte mit POIs")
+    plz_map = st.text_input("PLZ für Karte", "04109")
+    ort = analysiere_standort(plz_map)
+    if "Latitude" in ort and "Longitude" in ort:
+        lat, lon = float(ort["Latitude"]), float(ort["Longitude"])
+        m = folium.Map(location=[lat, lon], zoom_start=14)
+        folium.Marker([lat, lon], popup=ort.get("Ort", "Standort"), icon=folium.Icon(color="blue")).add_to(m)
+
+        pois = finde_pois(lat, lon)
+        for poi in pois:
+            icon = "green"
+            if poi["typ"] == "supermarket":
+                icon = "red"
+            elif poi["typ"] in ["school", "kindergarten"]:
+                icon = "orange"
+            elif poi["typ"] == "platform":
+                icon = "gray"
+            folium.Marker(
+                [poi["lat"], poi["lon"]],
+                popup=f"{poi['typ'].capitalize()}: {poi['name']}",
+                icon=folium.Icon(color=icon, icon="info-sign")
+            ).add_to(m)
+
+        st_folium(m, width=700, height=500)
