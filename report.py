@@ -8,11 +8,16 @@ def erstelle_pdf(bewertung, standort):
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # Titel
+    try:
+        logo = "logo.png"
+        if os.path.exists(logo):
+            c.drawImage(logo, 40, height - 100, width=100, preserveAspectRatio=True)
+    except Exception as e:
+        print("Logo konnte nicht geladen werden:", e)
+
     c.setFont("Helvetica-Bold", 16)
     c.drawString(50, height - 50, "Immo360 – Immobilienbewertung")
 
-    # Bewertungsdaten
     c.setFont("Helvetica-Bold", 12)
     y = height - 100
     c.drawString(50, y, "📊 Bewertungsergebnisse:")
@@ -21,7 +26,6 @@ def erstelle_pdf(bewertung, standort):
         y -= 20
         c.drawString(70, y, f"{key}: {value}")
 
-    # Standortdaten
     y -= 40
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y, "📍 Standort:")

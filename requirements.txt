@@ -1,2 +1,7 @@
 streamlit
 reportlab
+Pillow
+requests
+folium
+streamlit_folium
+pandas
