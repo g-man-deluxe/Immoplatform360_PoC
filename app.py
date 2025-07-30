@@ -13,7 +13,7 @@ logo = Image.open("logo.png")
 st.image(logo, width=120)
 st.title("🏠 Immo360 – Immobilienbewertung für Kleinanleger")
 
-tabs = st.tabs(["🏘 Objektbewertung", "📍 Standort & Markt"])
+tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse & Karte", "💶 Preis-Heatmap"])
 
 with tabs[0]:
     st.subheader("📥 Objektdaten")
@@ -51,12 +51,10 @@ with tabs[0]:
         st.markdown(f"**Koordinaten:** {standortdaten.get('Latitude')} / {standortdaten.get('Longitude')}")
 
 with tabs[1]:
-    st.subheader("📍 Adresse analysieren und Marktumfeld anzeigen")
-
-    plz_map = st.text_input("PLZ", "80331")
-    str_map = st.text_input("Straße", "Marienplatz")
-    nr_map = st.text_input("Hausnummer", "1")
-    selected_city = st.selectbox("Stadt für Heatmap", ["München", "Hamburg"])
+    st.subheader("📍 Standortanalyse & Karte")
+    plz_map = st.text_input("PLZ", "80331", key="plz_karten")
+    str_map = st.text_input("Straße", "Marienplatz", key="str_karten")
+    nr_map = st.text_input("Hausnummer", "1", key="nr_karten")
 
     if plz_map:
         ort = analysiere_standort(plz_map, str_map, nr_map)
@@ -81,12 +79,16 @@ with tabs[1]:
                     icon=folium.Icon(color=icon)
                 ).add_to(m)
 
-            # Heatmap ergänzen
-            df = pd.read_csv("preise.csv")
-            df_city = df[df["stadt"] == selected_city]
-            heat_data = [[row["lat"], row["lon"], row["price"]] for _, row in df_city.iterrows()]
-            HeatMap(heat_data, radius=15, blur=10, max_zoom=13).add_to(m)
-
             st_folium(m, width=700, height=500)
         else:
             st.warning("⚠️ Standort konnte nicht bestimmt werden.")
+
+with tabs[2]:
+    st.subheader("💶 Kaufpreis-Heatmap")
+    selected_city = st.selectbox("Stadt auswählen", ["München", "Hamburg"])
+    df = pd.read_csv("preise.csv")
+    df_city = df[df["stadt"] == selected_city]
+    m = folium.Map(location=[df_city["lat"].mean(), df_city["lon"].mean()], zoom_start=12)
+    heat_data = [[row["lat"], row["lon"], row["price"]] for _, row in df_city.iterrows()]
+    HeatMap(heat_data, radius=15, blur=10, max_zoom=13).add_to(m)
+    st_folium(m, width=700, height=500)
