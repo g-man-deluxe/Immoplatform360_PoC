@@ -11,12 +11,9 @@ def berechne_kennzahlen(kaufpreis, flaeche, miete, lage, zustand, zinssatz, lauf
     lagef = faktor_lage(lage)
     zustandf = faktor_zustand(zustand)
     score = lagef * zustandf
-
-    # Annuität
     zinssatz_monat = zinssatz / 100 / 12
     monate = laufzeit * 12
     annuitaet = (zinssatz_monat * kaufpreis) / (1 - (1 + zinssatz_monat) ** -monate)
-
     return {
         "Kaufpreis pro m²": round(qm_preis, 2),
         "Bruttorendite (%)": round(rendite, 2),
