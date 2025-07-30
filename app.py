@@ -27,11 +27,13 @@ with tabs[0]:
         zinssatz = st.slider("Zinssatz (%)", 0.5, 10.0, 4.0, 0.1)
         laufzeit = st.slider("Finanzierungslaufzeit (Jahre)", 5, 35, 25, 1)
         plz = st.text_input("Postleitzahl", "04109")
+        strasse = st.text_input("Straße", "Augustusplatz")
+        hausnr = st.text_input("Hausnummer", "1")
         abschicken = st.form_submit_button("✅ Bewertung starten")
 
     if abschicken:
         result = berechne_kennzahlen(kaufpreis, wohnflaeche, kaltmiete, lage, zustand, zinssatz, laufzeit)
-        standortdaten = analysiere_standort(plz)
+        standortdaten = analysiere_standort(plz, strasse, hausnr)
         st.success("Bewertung abgeschlossen:")
         st.json(result)
         st.subheader("📍 Standortdaten")
@@ -42,15 +44,19 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader("🔍 Individuelle Standortanalyse")
-    plz_input = st.text_input("Postleitzahl eingeben", "")
+    plz_input = st.text_input("Postleitzahl")
+    str_input = st.text_input("Straße")
+    nr_input = st.text_input("Hausnummer")
     if plz_input:
-        result = analysiere_standort(plz_input)
+        result = analysiere_standort(plz_input, str_input, nr_input)
         st.write(result)
 
 with tabs[2]:
     st.subheader("🗺 Standortkarte mit POIs")
     plz_map = st.text_input("PLZ für Karte", "04109")
-    ort = analysiere_standort(plz_map)
+    str_map = st.text_input("Straße", "Augustusplatz")
+    nr_map = st.text_input("Hausnummer", "1")
+    ort = analysiere_standort(plz_map, str_map, nr_map)
     if "Latitude" in ort and "Longitude" in ort:
         lat, lon = float(ort["Latitude"]), float(ort["Longitude"])
         m = folium.Map(location=[lat, lon], zoom_start=14)

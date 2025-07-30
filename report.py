@@ -2,18 +2,22 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import io
 from PIL import Image
+import os
 
 def erstelle_pdf(bewertung, standort):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
+
+    # Logo einfügen mit Fehlerbehandlung
     try:
         logo = Image.open("logo.png")
         logo_path = "/tmp/logo_temp.png"
         logo.save(logo_path)
-        c.drawImage(logo_path, 40, height - 100, width=100, preserveAspectRatio=True)
-    except:
-        pass
+        if os.path.exists(logo_path):
+            c.drawImage(logo_path, 40, height - 100, width=100, preserveAspectRatio=True)
+    except Exception as e:
+        print("Logo konnte nicht geladen werden:", e)
 
     c.setFont("Helvetica-Bold", 16)
     c.drawString(160, height - 70, "Immo360 – Immobilienbewertung")
