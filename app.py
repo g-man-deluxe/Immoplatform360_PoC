@@ -6,9 +6,9 @@ from overpass import finde_pois
 from PIL import Image
 import folium
 from streamlit_folium import st_folium
+import pandas as pd
 
 st.set_page_config(page_title="Immo360 – Immobilienbewertung", layout="centered")
-
 logo = Image.open("logo.png")
 st.image(logo, width=120)
 st.title("🏠 Immo360 – Immobilienbewertung für Kleinanleger")
@@ -34,47 +34,22 @@ with tabs[0]:
     if abschicken:
         result = berechne_kennzahlen(kaufpreis, wohnflaeche, kaltmiete, lage, zustand, zinssatz, laufzeit)
         standortdaten = analysiere_standort(plz, strasse, hausnr)
-        st.success("Bewertung abgeschlossen:")
-        st.json(result)
-        st.subheader("📍 Standortdaten")
-        st.json(standortdaten)
+
+        st.success("🏁 Bewertung abgeschlossen")
+        st.subheader("📊 Bewertungsergebnisse")
+        df_result = pd.DataFrame(result.items(), columns=["Kennzahl", "Wert"])
+        st.table(df_result)
+
+        st.subheader("🧠 Bewertung")
+        if result["Einschätzung"] == "🔴 kritisch":
+            st.error("Die Immobilie wird als *kritisch* eingestuft.")
+        else:
+            st.success("Die Immobilie erscheint *attraktiv*.")
+
+        st.subheader("📍 Standort")
+        st.markdown(f"**Adresse:** {standortdaten.get('Ort', '–')}")
+        st.markdown(f"**Koordinaten:** {standortdaten.get('Latitude')} / {standortdaten.get('Longitude')}")
+
         if st.button("📄 Immo360-PDF erstellen"):
             pdf_file = erstelle_pdf(result, standortdaten)
             st.download_button("Download PDF", pdf_file, file_name="immo360_bewertung.pdf")
-
-with tabs[1]:
-    st.subheader("🔍 Individuelle Standortanalyse")
-    plz_input = st.text_input("Postleitzahl")
-    str_input = st.text_input("Straße")
-    nr_input = st.text_input("Hausnummer")
-    if plz_input:
-        result = analysiere_standort(plz_input, str_input, nr_input)
-        st.write(result)
-
-with tabs[2]:
-    st.subheader("🗺 Standortkarte mit POIs")
-    plz_map = st.text_input("PLZ für Karte", "04109")
-    str_map = st.text_input("Straße", "Augustusplatz")
-    nr_map = st.text_input("Hausnummer", "1")
-    ort = analysiere_standort(plz_map, str_map, nr_map)
-    if "Latitude" in ort and "Longitude" in ort:
-        lat, lon = float(ort["Latitude"]), float(ort["Longitude"])
-        m = folium.Map(location=[lat, lon], zoom_start=14)
-        folium.Marker([lat, lon], popup=ort.get("Ort", "Standort"), icon=folium.Icon(color="blue")).add_to(m)
-
-        pois = finde_pois(lat, lon)
-        for poi in pois:
-            icon = "green"
-            if poi["typ"] == "supermarket":
-                icon = "red"
-            elif poi["typ"] in ["school", "kindergarten"]:
-                icon = "orange"
-            elif poi["typ"] == "platform":
-                icon = "gray"
-            folium.Marker(
-                [poi["lat"], poi["lon"]],
-                popup=f"{poi['typ'].capitalize()}: {poi['name']}",
-                icon=folium.Icon(color=icon, icon="info-sign")
-            ).add_to(m)
-
-        st_folium(m, width=700, height=500)
