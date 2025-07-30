@@ -13,7 +13,7 @@ logo = Image.open("logo.png")
 st.image(logo, width=120)
 st.title("🏠 Immo360 – Immobilienbewertung für Kleinanleger")
 
-tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse & Karte", "💶 Preis-Heatmap"])
+tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse & Karte", "💶 Preis-Heatmap", "📈 Analyse & Prognose"])
 
 with tabs[0]:
     st.subheader("📥 Objektdaten")
@@ -92,3 +92,32 @@ with tabs[2]:
     heat_data = [[row["lat"], row["lon"], row["price"]] for _, row in df_city.iterrows()]
     HeatMap(heat_data, radius=15, blur=10, max_zoom=13).add_to(m)
     st_folium(m, width=700, height=500)
+
+with tabs[3]:
+    st.subheader("📈 Analyse & Prognose")
+
+    st.markdown("### 1️⃣ Historische Preisentwicklung")
+    st.image("historie_preise.png", caption="Beispiel: Kaufpreis pro m² in München & Hamburg", use_column_width=True)
+
+    st.markdown("### 2️⃣ Nebenkosten & Rendite")
+    kaufpreis = st.number_input("Kaufpreis (€)", 50000, 2000000, 350000, 1000, key="a1")
+    kaltmiete = st.number_input("Monatliche Kaltmiete (€)", 100, 5000, 850, 50, key="a2")
+    instandhaltung = st.number_input("Jährliche Instandhaltung (€)", 0, 5000, 1000, 100, key="a3")
+
+    if st.button("📊 Analyse starten"):
+        from analyse import berechne_nebenkosten, berechne_rendite, berechne_break_even, score_bewertung
+
+        nk = berechne_nebenkosten(kaufpreis, instandhaltung_pro_jahr=instandhaltung)
+        jahresmiete = kaltmiete * 12
+        rendite = berechne_rendite(kaufpreis, jahresmiete, nk["Gesamtkosten (€)"], instandhaltung)
+        break_even = berechne_break_even(nk["Gesamtkosten (€)"], jahresmiete, instandhaltung)
+        score = score_bewertung(rendite["Bruttorendite (%)"], rendite["Nettorendite (%)"])
+
+        st.markdown("#### 💸 Nebenkosten")
+        st.json(nk)
+
+        st.markdown("#### 📈 Rendite")
+        st.json(rendite)
+
+        st.markdown(f"#### ⏳ Break-even: **{break_even} Jahre**")
+        st.markdown(f"#### 🧠 AI-Score: **{score}**")
