@@ -1,1 +1,8 @@
-def berechne_kennzahlen(*args, **kwargs): return {'Kaufpreis pro m²': 4375, 'Bruttorendite (%)': 2.91, 'Annuität (€)': 1847.43, 'Score-Faktor': 0.56, 'Einschätzung': '🔴 kritisch'}
+def berechne_kennzahlen(kaufpreis, flaeche, miete, lage, zustand, zinssatz, laufzeit):
+    return {
+        "Kaufpreis pro m²": 4375,
+        "Bruttorendite (%)": 2.91,
+        "Annuität (€)": 1847.43,
+        "Score-Faktor": 0.56,
+        "Einschätzung": "🔴 kritisch"
+    }

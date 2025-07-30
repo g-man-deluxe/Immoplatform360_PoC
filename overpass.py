@@ -1,1 +1,2 @@
-def finde_pois(lat, lon): return []
+def finde_pois(lat, lon):
+    return []
