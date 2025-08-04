@@ -1,43 +1,44 @@
-
 import streamlit as st
-import pandas as pd
 
-st.set_page_config(page_title="Immo360", layout="wide")
+st.set_page_config(page_title="Immo360 Quick Check", layout="wide")
+st.title("🏘 Objektbewertung – Quick Check")
 
-st.title("🏡 Immo360")
+st.markdown("Fülle die Felder aus, um die Brutto-, Nettorendite und den monatlichen Cashflow zu berechnen.")
 
-tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse & Karte", "💶 Preis-Heatmap", "📈 Analyse & Prognose", "📊 Wertentwicklung (Excel-Modell)"])
+# Eingabefelder mit Standardwerten
+adresse = st.text_input("Adresse des Objekts (optional)", "")
+wohnflaeche = st.number_input("Wohnfläche (m²)", min_value=10, max_value=1000, value=80)
+kaufpreis = st.number_input("Kaufpreis (€)", min_value=10000, max_value=10000000, value=400000, step=1000)
+mieteinnahmen_kalt = st.number_input("Monatliche Kaltmiete (€)", min_value=100, max_value=10000, value=1200, step=50)
 
-with tabs[4]:
-    st.subheader("📊 Wertentwicklung (Excel-Modell)")
+kaufnebenkosten_pct = st.slider("Kaufnebenkostenpauschale (%)", min_value=0, max_value=30, value=10)
+finanzierungsanteil = st.slider("Finanzierungsanteil (%)", min_value=0, max_value=100, value=90)
+zinssatz = st.slider("Zinssatz (%)", min_value=0.0, max_value=20.0, value=4.0, step=0.1)
+tilgung = st.slider("Tilgungsrate (%)", min_value=0.0, max_value=5.0, value=1.5, step=0.01)
 
-    st.markdown("Gib die Eckwerte deiner Vermietung ein:")
+# Berechnung
+kaltmiete_jahr = mieteinnahmen_kalt * 12
+bruttorendite = (kaltmiete_jahr / kaufpreis) * 100
 
-    startmiete = st.number_input("Startmiete pro Monat (€)", min_value=100, max_value=10000, value=1250, step=50)
-    steigerung = st.number_input("Jährliche Mietsteigerung (%)", min_value=0.0, max_value=10.0, value=2.0, step=0.5)
-    sanierung_jahr_5 = st.number_input("Sanierungskosten in Jahr 5 (€)", min_value=0, max_value=50000, value=0, step=500)
-    investitionskosten = st.number_input("Gesamte Investitionskosten (€)", min_value=50000, max_value=2000000, value=200000, step=1000)
+kaufpreis_gesamt = kaufpreis + (kaufpreis * kaufnebenkosten_pct / 100)
+nettorendite = (kaltmiete_jahr / kaufpreis_gesamt) * 100
 
-    if st.button("📈 Wertentwicklung berechnen"):
-        jahre = list(range(1, 11))
-        mieten_monat = [startmiete]
-        for i in range(1, 10):
-            neue_miete = mieten_monat[-1] * (1 + steigerung / 100)
-            mieten_monat.append(round(neue_miete, 2))
+darlehen = kaufpreis_gesamt * (finanzierungsanteil / 100)
+zinslast_jahr = darlehen * (zinssatz / 100)
+cashflow_monat = mieteinnahmen_kalt - (zinslast_jahr / 12)
 
-        mieten_jahr = [round(m*12, 2) for m in mieten_monat]
-        summe_miete = sum(mieten_jahr)
-        summe_miete_nach_sanierung = summe_miete - sanierung_jahr_5 if sanierung_jahr_5 else summe_miete
-        rendite = summe_miete_nach_sanierung / investitionskosten * 100
+# Ausgabe
+st.markdown("---")
+st.subheader("📈 Ergebnis")
 
-        df = pd.DataFrame({
-            "Jahr": jahre,
-            "Miete pro Monat (€)": mieten_monat,
-            "Miete pro Jahr (€)": mieten_jahr
-        })
+col1, col2, col3 = st.columns(3)
+col1.metric("Bruttorendite", f"{bruttorendite:.2f} %")
+col2.metric("Nettorendite", f"{nettorendite:.2f} %")
+col3.metric("Cashflow (monatlich)", f"{cashflow_monat:,.2f} €", delta=None if cashflow_monat >= 0 else "negativ")
 
-        st.dataframe(df, use_container_width=True)
-        st.markdown(f"**📌 Summe Mieteinnahmen (10 Jahre): {summe_miete:,.2f} €**")
-        if sanierung_jahr_5:
-            st.markdown(f"**🔧 Abzüglich Sanierung: {summe_miete_nach_sanierung:,.2f} €**")
-        st.markdown(f"**💰 Rendite bezogen auf {investitionskosten:,.0f} €: {rendite:.2f}%**")
+# Farbliche Hervorhebung bei negativem Cashflow
+if cashflow_monat < 0:
+    st.warning(f"🚨 Der monatliche Cashflow ist negativ: {cashflow_monat:,.2f} €")
+
+st.markdown("---")
+st.caption("Immo360 – Quick Check zur Erstbewertung deiner Investition")
