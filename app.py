@@ -1,123 +1,43 @@
+
 import streamlit as st
 import pandas as pd
-from PIL import Image
-from bewertung import berechne_kennzahlen
-from standort import analysiere_standort
-from overpass import finde_pois
-import folium
-from streamlit_folium import st_folium
-from folium.plugins import HeatMap
 
-st.set_page_config(page_title="Immo360 – Immobilienbewertung", layout="centered")
-logo = Image.open("logo.png")
-st.image(logo, width=120)
-st.title("🏠 Immo360 – Immobilienbewertung für Kleinanleger")
+st.set_page_config(page_title="Immo360", layout="wide")
 
-tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse & Karte", "💶 Preis-Heatmap", "📈 Analyse & Prognose"])
+st.title("🏡 Immo360")
 
-with tabs[0]:
-    st.subheader("📥 Objektdaten")
-    with st.form("immobilien_formular"):
-        kaufpreis = st.number_input("Kaufpreis (€)", 50000, 2000000, 350000, 1000)
-        wohnflaeche = st.number_input("Wohnfläche (m²)", 20, 500, 80, 1)
-        kaltmiete = st.number_input("Monatliche Kaltmiete (€)", 100, 5000, 850, 50)
-        lage = st.selectbox("Lage", ["einfach", "mittel", "gut", "sehr gut"])
-        zustand = st.selectbox("Zustand", ["renovierungsbedürftig", "durchschnittlich", "gut", "neuwertig"])
-        baujahr = st.number_input("Baujahr", 1900, 2025, 1995)
-        zinssatz = st.slider("Zinssatz (%)", 0.5, 10.0, 4.0, 0.1)
-        laufzeit = st.slider("Finanzierungslaufzeit (Jahre)", 5, 35, 25, 1)
-        plz = st.text_input("Postleitzahl", "04109")
-        strasse = st.text_input("Straße", "Augustusplatz")
-        hausnr = st.text_input("Hausnummer", "1")
-        abschicken = st.form_submit_button("✅ Bewertung starten")
+tabs = st.tabs(["🏘 Objektbewertung", "📍 Standortanalyse & Karte", "💶 Preis-Heatmap", "📈 Analyse & Prognose", "📊 Wertentwicklung (Excel-Modell)"])
 
-    if abschicken:
-        result = berechne_kennzahlen(kaufpreis, wohnflaeche, kaltmiete, lage, zustand, zinssatz, laufzeit)
-        standortdaten = analysiere_standort(plz, strasse, hausnr)
+with tabs[4]:
+    st.subheader("📊 Wertentwicklung (Excel-Modell)")
 
-        st.success("🏁 Bewertung abgeschlossen")
-        st.subheader("📊 Bewertungsergebnisse")
-        df_result = pd.DataFrame(result.items(), columns=["Kennzahl", "Wert"])
-        st.table(df_result)
+    st.markdown("Gib die Eckwerte deiner Vermietung ein:")
 
-        st.subheader("🧠 Bewertung")
-        if result["Einschätzung"] == "🔴 kritisch":
-            st.error("Die Immobilie wird als *kritisch* eingestuft.")
-        else:
-            st.success("Die Immobilie erscheint *attraktiv*.")
+    startmiete = st.number_input("Startmiete pro Monat (€)", min_value=100, max_value=10000, value=1250, step=50)
+    steigerung = st.number_input("Jährliche Mietsteigerung (%)", min_value=0.0, max_value=10.0, value=2.0, step=0.5)
+    sanierung_jahr_5 = st.number_input("Sanierungskosten in Jahr 5 (€)", min_value=0, max_value=50000, value=0, step=500)
+    investitionskosten = st.number_input("Gesamte Investitionskosten (€)", min_value=50000, max_value=2000000, value=200000, step=1000)
 
-        st.subheader("📍 Standort")
-        st.markdown(f"**Adresse:** {standortdaten.get('Ort', '–')}")
-        st.markdown(f"**Koordinaten:** {standortdaten.get('Latitude')} / {standortdaten.get('Longitude')}")
+    if st.button("📈 Wertentwicklung berechnen"):
+        jahre = list(range(1, 11))
+        mieten_monat = [startmiete]
+        for i in range(1, 10):
+            neue_miete = mieten_monat[-1] * (1 + steigerung / 100)
+            mieten_monat.append(round(neue_miete, 2))
 
-with tabs[1]:
-    st.subheader("📍 Standortanalyse & Karte")
-    plz_map = st.text_input("PLZ", "80331", key="plz_karten")
-    str_map = st.text_input("Straße", "Marienplatz", key="str_karten")
-    nr_map = st.text_input("Hausnummer", "1", key="nr_karten")
+        mieten_jahr = [round(m*12, 2) for m in mieten_monat]
+        summe_miete = sum(mieten_jahr)
+        summe_miete_nach_sanierung = summe_miete - sanierung_jahr_5 if sanierung_jahr_5 else summe_miete
+        rendite = summe_miete_nach_sanierung / investitionskosten * 100
 
-    if plz_map:
-        ort = analysiere_standort(plz_map, str_map, nr_map)
-        if "Latitude" in ort and "Longitude" in ort:
-            st.success(f"📍 Standort: {ort.get('Ort')}")
-            lat, lon = float(ort["Latitude"]), float(ort["Longitude"])
-            m = folium.Map(location=[lat, lon], zoom_start=14)
-            folium.Marker([lat, lon], popup=ort.get("Ort", "Standort"), icon=folium.Icon(color="blue")).add_to(m)
+        df = pd.DataFrame({
+            "Jahr": jahre,
+            "Miete pro Monat (€)": mieten_monat,
+            "Miete pro Jahr (€)": mieten_jahr
+        })
 
-            pois = finde_pois(lat, lon)
-            for poi in pois:
-                icon = "green"
-                if poi["typ"] == "supermarket":
-                    icon = "red"
-                elif poi["typ"] in ["school", "kindergarten"]:
-                    icon = "orange"
-                elif poi["typ"] == "platform":
-                    icon = "gray"
-                folium.Marker(
-                    [poi["lat"], poi["lon"]],
-                    popup=f"{poi['typ'].capitalize()}: {poi['name']}",
-                    icon=folium.Icon(color=icon)
-                ).add_to(m)
-
-            st_folium(m, width=700, height=500)
-        else:
-            st.warning("⚠️ Standort konnte nicht bestimmt werden.")
-
-with tabs[2]:
-    st.subheader("💶 Kaufpreis-Heatmap")
-    selected_city = st.selectbox("Stadt auswählen", ["München", "Hamburg"])
-    df = pd.read_csv("preise.csv")
-    df_city = df[df["stadt"] == selected_city]
-    m = folium.Map(location=[df_city["lat"].mean(), df_city["lon"].mean()], zoom_start=12)
-    heat_data = [[row["lat"], row["lon"], row["price"]] for _, row in df_city.iterrows()]
-    HeatMap(heat_data, radius=15, blur=10, max_zoom=13).add_to(m)
-    st_folium(m, width=700, height=500)
-
-with tabs[3]:
-    st.subheader("📈 Analyse & Prognose")
-
-    st.markdown("### 1️⃣ Historische Preisentwicklung")
-    st.image("historie_preise.png", caption="Beispiel: Kaufpreis pro m² in München & Hamburg", use_column_width=True)
-
-    st.markdown("### 2️⃣ Nebenkosten & Rendite")
-    kaufpreis = st.number_input("Kaufpreis (€)", 50000, 2000000, 350000, 1000, key="a1")
-    kaltmiete = st.number_input("Monatliche Kaltmiete (€)", 100, 5000, 850, 50, key="a2")
-    instandhaltung = st.number_input("Jährliche Instandhaltung (€)", 0, 5000, 1000, 100, key="a3")
-
-    if st.button("📊 Analyse starten"):
-        from analyse import berechne_nebenkosten, berechne_rendite, berechne_break_even, score_bewertung
-
-        nk = berechne_nebenkosten(kaufpreis, instandhaltung_pro_jahr=instandhaltung)
-        jahresmiete = kaltmiete * 12
-        rendite = berechne_rendite(kaufpreis, jahresmiete, nk["Gesamtkosten (€)"], instandhaltung)
-        break_even = berechne_break_even(nk["Gesamtkosten (€)"], jahresmiete, instandhaltung)
-        score = score_bewertung(rendite["Bruttorendite (%)"], rendite["Nettorendite (%)"])
-
-        st.markdown("#### 💸 Nebenkosten")
-        st.json(nk)
-
-        st.markdown("#### 📈 Rendite")
-        st.json(rendite)
-
-        st.markdown(f"#### ⏳ Break-even: **{break_even} Jahre**")
-        st.markdown(f"#### 🧠 AI-Score: **{score}**")
+        st.dataframe(df, use_container_width=True)
+        st.markdown(f"**📌 Summe Mieteinnahmen (10 Jahre): {summe_miete:,.2f} €**")
+        if sanierung_jahr_5:
+            st.markdown(f"**🔧 Abzüglich Sanierung: {summe_miete_nach_sanierung:,.2f} €**")
+        st.markdown(f"**💰 Rendite bezogen auf {investitionskosten:,.0f} €: {rendite:.2f}%**")
