@@ -1,44 +1,65 @@
 import streamlit as st
+import uuid
 
-st.set_page_config(page_title="Immo360 Quick Check", layout="wide")
-st.title("🏘 Objektbewertung – Quick Check")
+st.set_page_config(page_title="Immo360 – Objektvorrat", layout="wide")
+st.title("📁 Objektvorrat – Bewertete Immobilien verwalten")
 
-st.markdown("Fülle die Felder aus, um die Brutto-, Nettorendite und den monatlichen Cashflow zu berechnen.")
+# Beispiel-Datenbank (Session-State)
+if "objekte" not in st.session_state:
+    st.session_state.objekte = []
 
-# Eingabefelder mit Standardwerten
-adresse = st.text_input("Adresse des Objekts (optional)", "")
-wohnflaeche = st.number_input("Wohnfläche (m²)", min_value=10, max_value=1000, value=80)
-kaufpreis = st.number_input("Kaufpreis (€)", min_value=10000, max_value=10000000, value=400000, step=1000)
-mieteinnahmen_kalt = st.number_input("Monatliche Kaltmiete (€)", min_value=100, max_value=10000, value=1200, step=50)
+# Funktion zum Rendern einer Zeile
+def render_objekt_zeile(objekt):
+    col1, col2, col3, col4 = st.columns([3, 2, 4, 1])
+    col1.markdown(f"**{objekt['adresse']}**")
+    col2.markdown(objekt['stadt'])
 
-kaufnebenkosten_pct = st.slider("Kaufnebenkostenpauschale (%)", min_value=0, max_value=30, value=10)
-finanzierungsanteil = st.slider("Finanzierungsanteil (%)", min_value=0, max_value=100, value=90)
-zinssatz = st.slider("Zinssatz (%)", min_value=0.0, max_value=20.0, value=4.0, step=0.1)
-tilgung = st.slider("Tilgungsrate (%)", min_value=0.0, max_value=5.0, value=1.5, step=0.01)
+    with col3:
+        st.markdown("""
+        <style>.action-icons button {margin-right: 0.25rem;}</style>
+        <div class="action-icons">
+        """, unsafe_allow_html=True)
+        col3_cols = st.columns(6)
+        icons = [
+            ("📝", "Finanzierungsbescheinigung"),
+            ("👥", "Bewerbungsmappe"),
+            ("🕸️", "Beauftragungen"),
+            ("§", "Vertragsprüfung"),
+            ("🏷️", "Kosten verwalten"),
+            ("🏢✅", "Objekt übernehmen")
+        ]
+        for i, (symbol, tooltip) in enumerate(icons):
+            col3_cols[i].button(symbol, key=f"{objekt['id']}_{tooltip}", help=tooltip)
 
-# Berechnung
-kaltmiete_jahr = mieteinnahmen_kalt * 12
-bruttorendite = (kaltmiete_jahr / kaufpreis) * 100
+    with col4:
+        if col4.button("🗑️", key=f"del_{objekt['id']}", help="Löschen"):
+            if st.confirm("Willst du dieses Objekt wirklich löschen?"):
+                st.session_state.objekte = [o for o in st.session_state.objekte if o['id'] != objekt['id']]
+                st.experimental_rerun()
 
-kaufpreis_gesamt = kaufpreis + (kaufpreis * kaufnebenkosten_pct / 100)
-nettorendite = (kaltmiete_jahr / kaufpreis_gesamt) * 100
+# Objekt hinzufügen
+if st.button("➕ Neues Objekt bewerten"):
+    with st.form("Neues Objekt", clear_on_submit=True):
+        adresse = st.text_input("Adresse")
+        plz = st.text_input("Postleitzahl")
+        stadt = st.text_input("Ort")
+        titel = st.text_input("Titel (optional)")
+        submitted = st.form_submit_button("Speichern")
+        if submitted:
+            st.session_state.objekte.append({
+                "id": str(uuid.uuid4()),
+                "adresse": f"{titel + ' – ' if titel else ''}{adresse}, {plz} {stadt}",
+                "stadt": stadt,
+            })
+            st.success("Objekt wurde hinzugefügt")
+            st.experimental_rerun()
 
-darlehen = kaufpreis_gesamt * (finanzierungsanteil / 100)
-zinslast_jahr = darlehen * (zinssatz / 100)
-cashflow_monat = mieteinnahmen_kalt - (zinslast_jahr / 12)
-
-# Ausgabe
 st.markdown("---")
-st.subheader("📈 Ergebnis")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Bruttorendite", f"{bruttorendite:.2f} %")
-col2.metric("Nettorendite", f"{nettorendite:.2f} %")
-col3.metric("Cashflow (monatlich)", f"{cashflow_monat:,.2f} €", delta=None if cashflow_monat >= 0 else "negativ")
-
-# Farbliche Hervorhebung bei negativem Cashflow
-if cashflow_monat < 0:
-    st.warning(f"🚨 Der monatliche Cashflow ist negativ: {cashflow_monat:,.2f} €")
-
-st.markdown("---")
-st.caption("Immo360 – Quick Check zur Erstbewertung deiner Investition")
+# Liste anzeigen
+if st.session_state.objekte:
+    st.subheader("📋 Bewertete Objekte")
+    for objekt in st.session_state.objekte:
+        render_objekt_zeile(objekt)
+else:
+    st.info("Noch keine Objekte gespeichert. Bitte füge eines hinzu.")
